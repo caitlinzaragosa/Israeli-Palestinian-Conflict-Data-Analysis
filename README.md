@@ -8,5 +8,6 @@ The data used for these analyses are located here:
 Armed Conflict Location & Event Data Project (ACLED); acleddata.com
 
 UNHCR Refugee Population Statistics Database; https://www.unrwa.org; https://www.unhcr.org/terms-and-conditions.html
-      For the exact query used: https://www.unhcr.org/refugee-statistics/download/?url=5cxD
+
+For the exact query used: https://www.unhcr.org/refugee-statistics/download/?url=5cxD
 
