@@ -98,6 +98,7 @@ Map of Palestinian Refugees between 1952-2019s {data-navmenu="History"}
 ### Map of Palestinian Refugees between 1952-2019
 ```{r Map, include=FALSE}
 
+MENA <- c("Palestine" , "Lebanon", "Israel", "Jordan")
 
 library(maps)
 
