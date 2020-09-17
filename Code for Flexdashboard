@@ -1,0 +1,1043 @@
+---
+title: "Israeli-Palestinian Conflict Data Analysis"
+resource_files:
+- stm_data5.rData
+- stm_data.rData
+- sentiment_data.rData
+- map.gif
+- News_venn.png
+- Conflict/PA_Conflict_Data.csv
+- Conflict/ISR_Conflict_Data.csv
+- unrwa.csv
+- countries.csv
+runtime: shiny
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    theme: lumen
+    vertical_layout: scroll
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(tidy = FALSE)
+# Package names
+#packages <- c("ggplot2", "readxl", "dplyr", "tidyr",  "knitr", "lubridate", "flexdashboard", "igraph", "networkD3", "manipulateWidget", "timevis", "collapsibleTree", "plotly", "readr", "stringr", "htmlwidgets", "tokenizers", "tm", "tau", "data.table", "gridExtra", "ngram", "maps", "rgeos", "maptools", "ggmap", "geosphere", "ggthemes", "gifski", "RColorBrewer", "DT", "dygraphs", "xts" "shiny", "reactable", "htmltools", "leaflet", "VennDiagram", "gganimate", "Hmisc", "kableExtra", "leafgl", "sf", "colourvalues","sf","tm","SnowballC","stm","sentimentr", "magrittr", "summarytools")
+
+# Install packages not yet installed
+
+#install.packages( c("ggplot2", "readxl", "dplyr", "tidyr",  "knitr", "lubridate", "flexdashboard", "igraph", "networkD3", "manipulateWidget", "timevis", "collapsibleTree", "plotly", "readr", "stringr", "htmlwidgets", "tokenizers", "tm", "tau", "data.table", "gridExtra", "ngram", "maps", "rgeos", "maptools", "ggmap", "geosphere", "ggthemes", "gifski", "RColorBrewer", "DT", "dygraphs", "xts", "shiny", "reactable", "htmltools", "leaflet", "VennDiagram", "gganimate", "Hmisc", "kableExtra". "leafgl", "sf", "colourvalues","sf","tm","SnowballC","stm","sentimentr", "magrittr", "summarytools"))
+lapply( c("ggplot2", "readxl", "dplyr", "tidyr",  "knitr", "lubridate", "flexdashboard", "igraph", "networkD3", "manipulateWidget", "timevis", "collapsibleTree", "plotly", "readr", "stringr", "htmlwidgets", "tokenizers", "tm", "tau", "data.table", "gridExtra", "ngram", "maps", "rgeos", "maptools", "ggmap", "geosphere", "ggthemes", "gifski", "RColorBrewer", "DT", "dygraphs", "xts", "shiny","reactable", "htmltools", "leaflet", "VennDiagram", "gganimate", "Hmisc", "kableExtra", "leafgl", "sf", "colourvalues","sf","tm","SnowballC","stm","sentimentr", "magrittr", "summarytools"), require, character.only = TRUE)
+
+#lapply(packages, require, character.only = TRUE)
+#installed_packages <- packages %in% rownames(installed.packages())
+#if (any(installed_packages == FALSE)) {
+ # install.packages(packages[!installed_packages])
+#}
+# Packages loading
+
+#invisible(lapply(packages, library, character.only = TRUE))
+
+if(is_latex_output()) {
+  plot_default <- knit_hooks$get("plot")
+  knit_hooks$set(plot = function(x, options) { 
+    x <- c(plot_default(x, options), "\\vspace{25pt}")
+ })
+}
+
+#devtools::install_github('thomasp85/gganimate')
+
+
+htmlwidgets::onRender
+
+load("stm_data.rData")
+load("stm_data5.rData")
+load("sentiment_data.rData")
+```
+
+```{r setup 2, include=FALSE}
+
+### Data was found here: https://www.unhcr.org/refugee-statistics/download/?url=5cxD
+ref <- read.csv("unrwa.csv", encoding="UTF-8")
+
+countries <- read.csv("countries.csv", encoding="UTF-8")
+
+countries$name <- as.character(countries$name)
+countries$name[countries$name=="Palestinian Territories"] <- "State of Palestine"
+
+full <- inner_join(ref, countries, by=c("Country.of.asylum"="name"))
+
+full <- as.data.frame(full)
+
+full <- full %>%
+  dplyr::select(Year, Country.of.origin, Country.of.asylum, Total, latitude, longitude)
+```
+
+A Quick Run down of Israeli-Palestinian Relations {data-navmenu="History"}
+=====================================
+Row 
+----------------------------------
+Arabs living in Palestine before WWI were under Ottoman rule until captured by the British in 1917. Britain had military occupation in the Palestinian region, but during WWI, Britain promised independence to the Arabs in exchange for fighting to overthrow the Ottomans. Though their initial interest in Palestine was to keep France outside the region, the British interests began aligning with Zionists to motivate other countries to support the British in the war. It was evident that Britain sympathized more with the Zionist goals through the Balfour Declaration issued in 1917; this allowed the immigration of Jews into Palestine so long as they coexisted with the existing Arab population.
+<br>
+<br>
+During the 20s and 30s, tensions between the Jews and Arabs continued to intensify. Jews were pursuing the establishment of a new society for their people to have a Jewish state as a way to escape persecution, but the existing natives weren’t considered in the motivations of the Jews. This idea of a Jewish-only state couldn’t be reconciled with the conditions of the Balfour Declaration because a Jewish-only state couldn’t be made with the existence of non-Jewish communities. Since Jews had the upper hand from British imperialism and donations from international communities, the Jewish work agency could persuade companies to hire more Jewish workers than Arabs, which caused Palestinian laborers to suffer. This form of oppression gave Palestinians no choice but to cause violence and revolt, fueling the fire for the Palestinians to begin the resistance of Jewish colonial occupation.
+<br>
+<br>
+In 1947, the British lost control of the region and the UN formulated a resolution that would divide the mandate into a Jewish and Palestinian state, also known as the “Two State Solution,” and gave about 56% of the land to the Jews. The Israeli government transferred Palestinian property to Israeli immigrants and eventually, Ben-Gurion declared Israel as an independent state in 1948.
+<br>
+<br>
+Through multiple wars and conflicts compounded with several transfers and takeovers of Palestianian property to Israeli immmigrants, Israel began making huge gains on territory and eventually forced Palestinians out of their homes. This caused a majority of Palestinians to be considered refugees either within the confines of Palestine or in other countries, such as Jordan and Lebanon. 
+
+Row  {data-orientation=rows}
+----------------------------------
+
+
+Map of Palestinian Refugees between 1952-2019s {data-navmenu="History"}
+=====================================
+### Map of Palestinian Refugees between 1952-2019
+```{r Map, include=FALSE}
+
+
+library(maps)
+
+world <- ggplot() +
+  borders(database="world", regions= MENA, colour = "black", fill = "gray80") +
+  borders(database="world", regions= "Palestine", colour = "black", fill = "floralwhite")+
+  borders(database="world", regions= "Lebanon", colour = "black", fill ="firebrick2" )+
+  borders(database="world", regions= "Israel", colour = "black", fill = "dodgerblue4")+
+  borders(database="world", regions= "Jordan", colour = "black", fill = "forestgreen")+
+  theme_map()  +
+  theme(legend.position="bottom")
+
+map <- world +
+ geom_point(aes(x = longitude, y = latitude, size = Total),
+             data = full, 
+             colour = 'navy', alpha = .5) +
+  scale_size_continuous(range = c(1, 8), 
+                        breaks = c(100000,250000, 500000,750000, 1000000,1250000, 1500000,1750000,
+                                   2250000, 2000000,2500000)) +
+  geom_text(aes(label=full$Country.of.asylum, x = full$longitude+.3, y = full$latitude+.3))+
+  labs(size = 'Total') 
+  labs(title = 'Year: {frame_time}', x = 'GDP per capita', y = 'life expectancy') +
+  transition_time(Year) +
+  ease_aes('linear')
+
+### Use this to save the map!
+anim_save("map.gif", map)
+```
+![](map.gif)
+
+Row {data-orientation=rows}
+----------------------------------
+
+<br>
+An interesting thing to note is the number of Palestinians who are recognized as refugees within the confinements of the "State of Palestine". This is because many Palestinians fled or were expelled during the 1948 Arab-Israeli war and were given refuge in either actual refugee camps or nearby areas. Although Palestinians may not actually reside in a camp, this does not imply complete Palestinian governance over their daily lives. 
+<br>
+Here is a breakdown of what is happening within the following countries:  
+<br>
+<br>
+<br>
+Lebanon: 
+<br>
+-Palestinian refugees were initially welcomed in 1948, but internal political instability led to a shift in the perception of Palestinians. The government actually went to great lengths to ensure that destroyed camps could not be reconstructed and new camps could not be built.
+-Refugees were restricted from over 70 types of jobs because the government had no intent to actually nationalize them. 
+<br>
+<br>
+Jordan:
+<br>
+-Palestinians were actually granted citizenship if they arrived before 1949.  
+-Refugees are heavily integrated by working through Jordanian institutions rather than being considered an outside group. Although there is a bit of tension between Jordanian born Jordanians and Palestianian-Jordanians, their status as a Palestinian does not hinder their everyday life.  
+<br>
+<br>
+<br> 
+Palestinians also sought refuge in Syria (not pictured) and Syrian government was extremely supportive of their movement, granting refugees equal rights to Syrian citizens. Syrian government tends to refuse to participate in any talks with Israel until Israeli people withdraw from Palestinian land.
+
+
+
+Current Altercation and Conflict Analysis {data-navmenu="Current Analysis"}
+=====================================
+
+### Where are we now? 
+
+Row  {data-orientation=rows, data-height=140}
+-------------------------------------
+If we fast forward to the present, we'll find that things have since gotten more complicated and more complex due to the ever evolving question of "whose land is this anyways?" Because several international actors are involved as well, tensions are high as occupation is the new normal for some of these "Palestinian" territories. What we're about to dive into is unique and interesting because we have data on conflicts and altercations that occur in Israel and Palestine, and the data will reveal much more than meets the eye.  
+<br>
+<br>
+This dataset includes information on the type, agents, exact location, date, and other characteristics of political violence events and select relevant non-violent events. ACLED focuses on tracking a range of violent and non-violent actions by political agents, including governments, rebels, militias, communal groups, political parties, external actors, rioters, protesters and civilians. The data contains specific information on the date, location, group names, interaction type, event type, reported fatalities, and contextual notes.
+<br> <br><br>
+Click to enlarge maps!
+
+Row  {data-height=90}
+-------------------------------------
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script><style>
+.zoomDiv {opacity: 0;position:absolute;top: 50%;left: 50%;z-index: 50;transform: translate(-50%, -50%);box-shadow: 0px 0px 50px #888888;max-height:100%; overflow: scroll;}
+.zoomImg {width: 100%;}
+</style><script type="text/javascript">$(document).ready(function() {
+$('body').prepend("<div class=\"zoomDiv\"><img src=\"\" class=\"zoomImg\"></div>");
+    // onClick function for all plots (img's)
+    $('img:not(.zoomImg)').click(function() {
+      $('.zoomImg').attr('src', $(this).attr('src'));
+      $('.zoomDiv').css({opacity: '1', width: '60%'});});
+    // onClick function for zoomImg
+    $('img.zoomImg').click(function() {
+    $('.zoomDiv').css({opacity: '0', width: '0%'});});});</script>
+
+Row  {data-orientation=rows}
+-------------------------------------
+
+```{r Palestinian Conflict Data, echo=FALSE, strip.white=TRUE}
+##Source : https://data.humdata.org/dataset/acled-data-for-state-of-palestine
+
+### The above code allows the user to click an image to expand it and zoom in
+
+palcon <- read.csv("Conflict/PA_Conflict_Data.csv", encoding="UTF-8")
+
+palcon <- palcon %>%
+  select(data_id, event_date, year, event_type, sub_event_type, actor1, assoc_actor_1, actor2, assoc_actor_2, region, country, admin1, admin2, admin3, location, latitude, longitude, source, source_scale, notes, fatalities)
+
+palcon_full <- palcon
+
+
+## We are going to de-duplicate this data to reflect individual events
+palcon$misscount <- rowSums(is.na(palcon) | palcon == "")
+
+palcon$event_date <- as.Date(palcon$event_date, format="%m/%d/%Y")
+
+#Step 1: identify duplicates
+pal_dupes <- palcon[duplicated(palcon[,c("event_date", "event_type", 
+                                     "sub_event_type", "admin1", "admin2", "actor1", "actor2","fatalities")])|
+                 duplicated(palcon[,c("event_date", "event_type", 
+                                     "sub_event_type", "admin1", "admin2", "actor1", "actor2", "fatalities")], fromLast = TRUE),]
+#Step 2: identify which duplicates to keep-- I'll keep the ones that have the least amount of missing variables/information
+pal_dupes_keep <- pal_dupes %>%
+  group_by(event_date, event_type, sub_event_type, admin1, admin2, actor1, actor2, fatalities) %>% 
+  slice(which.min(misscount)) %>%
+  ungroup()
+
+#Step 3: Remove duplicates and add which ones to keep back into the dataset
+palcon <- palcon %>%
+  anti_join(., pal_dupes, by="data_id") %>%
+  rbind(., pal_dupes_keep)
+
+
+###Heat map of conflicted areas in palestine
+#library(RColorBrewer)
+
+#min(palcon$latitude)
+#max(palcon$latitude)
+#min(palcon$longitude)
+#max(palcon$longitude)
+pal_bb <- c(left = 34.164184,
+            bottom = 31.134680,
+            right = 35.589660,
+            top = 32.568844)
+
+pal_stamen <- get_stamenmap(bbox = pal_bb,
+                                zoom = 9)
+
+ggmap(pal_stamen) +
+  geom_point(data = palcon,
+             aes(x = longitude,
+                 y = latitude), color="red", alpha=0.3)+
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
+                      axis.ticks.x=element_blank(), axis.title.y=element_blank(), axis.text.y=element_blank(),
+                      axis.ticks.y=element_blank(), plot.title = element_text(hjust = 0.5))+
+  ggtitle("Violent and Non-violent Events as Reported in the Palestinian Conflict Data")
+
+
+```
+
+
+Row  {data-orientation=rows}
+-------------------------------------
+
+*** One thing to note is that not ALL events regard the conflict between Israel and Palestine. There are several internal issues regarding the repective states of Israel and Palestine and throughout the years, movements have formed and grown, resulting in some of the heavily concentrated areas of events.  
+<br>
+We can see here that Jerusalem and the surrounding area is a heavily concentrated area of events. This makes the most sense for several reasons. First, the most obvious reason, is located in this area, we have 4 of the most recognized holy sites for 3 different religions: Dome of the Rock and Al-Aqsa Mosque for Muslims, Western Wall for Jews, and Church of the Holy Sepulchre for Christians. The Old City (heart of Jerusalem) is split into four quarters: Christian Quarter, Jewish Quarter, Muslim Quarter, and Armenian Quarter. This being said, both Israelis and Palestinians are constantly coming in contact with one another, with some living within feet of one another. Because these quarters are generally considered to each be their "own" (Christian and Muslim quarters belong to Palestinians and Jewish Quarter belonging to Israelis), you'll find that if people from one group enter into a quarter that is not considered to be their own, this will escalate into a quarrel of some form.  
+<br>
+Both Israelis and Palestinians want to consider Jerusalem to be the capital of their respective countries, but both cannot do that, which is why there's a constant conversation about whether or not to resolve the constant conflict by making Jerusalem it's own state or even under the authority of a third party. This is why the U.S. moving the embassy to Jerusalem had several implications for the region, the biggest being that the U.S. was choosing to recognize Jerusalem as Israel's capital.\ Upon stepping to the gate of the Old City, you'll also find Israeli military patrolling the area. This is not uncommon because throughout the region, there are several Israeli security check points (even upon entering Ramallah, which is considered to be Palestine's Capital). Though these check points are not mapped out, it is likely that the areas that contain a concentration of events would be those that are at or surrounding checkpoints. For instance, if you look slightly south of Jerusalem, this is where Bethlehem is located, but also a major security checkpoint that is directly between Jerusalem and the West Bank. A large wall was built here to separate and physically draw a line between the West Bank and Jerusalem, and because of that (and the tough security measures being taken there), there are many protests that occur on almost a daily basis.  
+<br>
+In addition, the two other cities that contain the most events are Ramallah and Hebron. Hebron has a unique history regarding the relations between Jews and Palestinians because the holy site-- Tomb of the Patriarchs. In addition, this is an area where you can feel the intensity of the ongoing conflict because what once was a place where the two groups lived in harmony has evolved to a very hostile environment with a history of massacres, occupation, and uprisings. It is a mostly Palestinian city with an increasing presence of Israelis (~1,000 Jewish residents surrounded by ~200,000 Palestinians), with a division of the area into H1 and H2 (H1=Palestinian Area, H2=Israeli Area that contains Tomb of the Patriarchs). Although the H2 area is very small, it is located in the heart of the city. As a result of the Second Intifada (uprising of Palestinians in 2000) and previous massacres of Jewish Settlers, there are several restrictions surrounding the area, which makes getting around the area insanely difficult for Palestinians and even results in children being forced to walk hours around the city just to abide by traffic restrictions. The closeness in quarters and constant back and forth of wrong doing results in the several clashes that result there.  
+
+Row  {data-height=90}
+-------------------------------------
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+<style>
+.zoomDiv {
+  opacity: 0;
+  position:absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 50;
+  transform: translate(-50%, -50%);
+  box-shadow: 0px 0px 50px #888888;
+  max-height:100%; 
+  overflow: scroll;
+}
+
+.zoomImg {
+  width: 100%;
+}
+</style>
+
+
+<script type="text/javascript">
+  $(document).ready(function() {
+    $('body').prepend("<div class=\"zoomDiv\"><img src=\"\" class=\"zoomImg\"></div>");
+    // onClick function for all plots (img's)
+    $('img:not(.zoomImg)').click(function() {
+      $('.zoomImg').attr('src', $(this).attr('src'));
+      $('.zoomDiv').css({opacity: '1', width: '60%'});
+    });
+    // onClick function for zoomImg
+    $('img.zoomImg').click(function() {
+      $('.zoomDiv').css({opacity: '0', width: '0%'});
+    });
+  });
+</script>
+Rown {data-orientation=rows}
+-------------------------------------
+```{r Israeli Conflict Data, echo=FALSE, strip.white=TRUE}
+
+#Source : https://data.humdata.org/dataset/acled-data-for-israel
+
+### The above code allows the user to click an image to expand it and zoom in
+
+isrcon <- read.csv("Conflict/ISR_Conflict_Data.csv", encoding="UTF-8")
+
+isrcon <- isrcon %>%
+  select(data_id, event_date, year, event_type, sub_event_type, actor1, assoc_actor_1, actor2, assoc_actor_2, region, country, admin1, admin2, admin3, location, latitude, longitude, source, source_scale, notes, fatalities)
+
+isrcon_full <- isrcon
+## We are going to de-duplicate this data to reflect individual events
+isrcon$misscount <- rowSums(is.na(isrcon) | isrcon == "")
+
+isrcon$event_date <- as.Date(isrcon$event_date, format="%m/%d/%Y")
+
+#Step 1: identify duplicates
+isr_dupes <- isrcon[duplicated(isrcon[,c("event_date", "event_type", 
+                                     "sub_event_type", "admin1", "admin2", "actor1", "actor2","fatalities")])|
+                 duplicated(isrcon[,c("event_date", "event_type", 
+                                     "sub_event_type", "admin1", "admin2", "actor1", "actor2", "fatalities")], fromLast = TRUE),]
+#Step 2: identify which duplicates to keep-- I'll keep the ones that have the least amount of missing variables/information
+isr_dupes_keep <- isr_dupes %>%
+  group_by(event_date, event_type, sub_event_type, admin1, admin2, actor1, actor2, fatalities) %>% 
+  slice(which.min(misscount)) %>%
+  ungroup()
+
+#Step 3: Remove duplicates and add which ones to keep back into the dataset
+isrcon <- isrcon %>%
+  anti_join(., isr_dupes, by="data_id") %>%
+  rbind(., isr_dupes_keep)
+
+
+#34.152100,29.476346,36.019776,33.437101
+
+
+isr_bb <- c(left = 34.152100,
+            bottom = 29.476346,
+            right = 36.019776,
+            top = 33.437101)
+
+library(ggmap)
+isr_stamen <- ggmap::get_stamenmap(bbox = isr_bb,
+                                zoom = 9)
+
+ggmap(isr_stamen) +
+  geom_point(data = isrcon,
+             aes(x = longitude,
+                 y = latitude), color="blue",alpha=0.3)+
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
+                      axis.ticks.x=element_blank(), axis.title.y=element_blank(), axis.text.y=element_blank(),
+                      axis.ticks.y=element_blank(), plot.title = element_text(hjust = 0.5))+
+  ggtitle("Violent and Non-violent Events as Reported in the Israeli Conflict Data")
+ 
+```
+
+Row  {data-orientation=rows}
+-------------------------------------
+On the flip side, we see that the majority of events occur in Tel Aviv, Jerusalem, and along the border of Gaza. Tel Aviv, the city most recognized as being the capital of Israel, is a place where several events occur. Aside from protests regarding equality and rights of labor, LGBTQ, women, and other groups, you'll find that many of these events regard something called the "Black Flag Movement", which is a movement against the current Prime Minister Netanyahu. In addition, you'll find similar clashes that occur in Jerusalem will appear in the Palestinian data as well (since Palestinians consider Jerusalem to be part of their territory). Although less concentrated, there are several Palestinians still living in their family homes throughout Israel Proper-- how? Well, sometimes these Palestinians will negotiate deals with the Israeli government or become Israeli citizens, but this does not mean that Pro-Palestinian demonstrations or altercations do not occur throughout Israel; even Israelis will protest on behalf of Palestinians against the occupation. Often times, we'll hear about the Palestinian extremist groups that exist in the region and are the root of many altercations, but I do want to point out that there are Israeli extremist groups consisting of extremely orthodox Jews and Zionist that want to maintain the "Jewish only" state of Israel, which means the elimination of Palestinians. You'll find that some of the events that occur in Jerusalem involve these groups.  
+<br>
+Gaza is an interesting area for both Israel and Palestine. This is the region in which the Hamas has control over. I'm sure you've heard of the Hamas as a terrorist organization because they spearhead and commit many violent attacks on Israel. Although this is true, I want to give you a bit of information that might help look at this situation differently. This group does provide what little structure and resources the Palestinian people have in the Gaza Strip, which is why there still is support behind the group. I also want to clarify that the West Bank and Gaza Strip are almost operated entirely differently, with Fatah being the leading political power in the West Bank and Hamas in Gaza; Hamas has adopted the same mentality of the extremely orthodox Jews where the other group cannot exist in their respective lands, where the Fatah (still disaccorded with different groups pushing for different policies) pushes for more of an idea of co-existence. There once was a route for Palestinians to freely move between the Gaza Strip and the West Bank, but this was revoked as a result of Israel's blockade on the Gaza Strip and several attacks on Israel. Gaza is suffering extremely from the blockade, which is why you will notice several violent attacks around the border. Also, another reason why this area is heavily concentrated with events is because from March 2018 until December 2019, there were large demonstrations every Friday demanding that the Palestinian refugees must be allowed to return to lands they were displaced from in what is now Israel.
+
+
+
+Data Exploration 1- Data at a glance {data-navmenu="Data Exploration"}
+=====================================
+<br><br>
+
+### Now that we have some context about the region, let's get started with some exploratory analysis!
+
+```{r Data Glance- Palestine}
+
+### I have to really narrow down this dataset for it to work in markdown
+pal_glance <- palcon[1:10,]
+
+DT::datatable(pal_glance, class = 'cell-border stripe', caption = 'Palestinian Conflict Data', options = list(pageLength = 5)) %>%
+  formatStyle(columns="notes", fontSize="70%")
+
+```
+
+<br><br><br>
+
+```{r Data Glance- Israel}
+
+### Same here--I have to really narrow down this dataset for it to work in markdown
+
+isr_glance<- isrcon[1:10,]
+
+library(DT)
+
+DT::datatable(isr_glance, class = 'cell-border stripe', caption = 'Israeli Conflict Data', options = list(pageLength = 5)) %>%
+  formatStyle(columns="notes", fontSize="70%")
+
+```
+
+Row  {data-orientation=rows}
+-------------------------------------
+
+<style>
+pre code, pre, code {
+  white-space: pre !important;
+  overflow-x: scroll !important;
+  word-break: keep-all !important;
+  word-wrap: initial !important;
+}
+</style>
+
+```{r Summary Stats-Pal}
+### The above code allows the user to scroll through the Summary table
+
+library(summarytools)
+summarytools::dfSummary(palcon_full)
+
+```
+
+Row  {data-orientation=rows}
+-------------------------------------
+
+<style>
+pre code, pre, code {
+  white-space: pre !important;
+  overflow-x: scroll !important;
+  word-break: keep-all !important;
+  word-wrap: initial !important;
+}
+</style>
+
+```{r Summary Stats-Isr}
+### Again-- The above code allows the user to scroll through the Summary table
+
+summarytools::dfSummary(isrcon_full)
+
+```
+
+
+Data Exploration 2- Fatalities Exploration {data-navmenu="Data Exploration"}
+=====================================
+
+### Let's take a look at those number of fatalities
+<br>
+Note: Some data cleaning was done to remove potential duplicate entries of reports about the same event. I decided to keep the duplicate record that contained the least amount of missing data. 
+
+```{r Fatalities Exploration}
+#### I noticed Hebron was spelled as "Herbon" so let's fix that
+palcon$admin2[palcon$admin2=="Herbon"] <- "Hebron"
+
+paldates <- palcon %>%
+  select(event_date, fatalities)
+paldates$source <- "Palestinian"
+isrdates <- isrcon %>%
+  select(event_date, fatalities)
+isrdates$source <- "Israeli"
+
+library(xts)
+
+combdates <- rbind(paldates, isrdates)
+
+combdates$Pal_Count <- ifelse(combdates$source=="Palestinian", combdates$fatalities, 0)
+combdates$Isr_Count <- ifelse(combdates$source=="Israeli", combdates$fatalities, 0)
+combdates <- combdates %>%
+  select(event_date, Pal_Count, Isr_Count)
+
+comb_bymonth <- combdates %>% 
+  mutate(date2 = format(event_date, "%Y-%m")) %>% group_by(date2) %>% summarise(total_pal = sum(Pal_Count), total_isr=sum(Isr_Count))
+
+combined_xts <- xts::as.xts(
+  comb_bymonth[-1]
+  , order.by = as.Date(
+    paste0(comb_bymonth$date2,"-01-01",format="%Y-01-01")
+  )
+)
+
+
+library(dygraphs)
+
+dygraph(combined_xts) %>%
+  dyAxis(name="x",axisLabelFormatter = "function(d){ return d.getFullYear() }") %>%
+   dyAxis("y", label = "Total Fatalities") %>%
+  dySeries("total_pal", axis = "y", label = "Fatalities-Palestinian Source") %>%
+  dySeries("total_isr", axis = "y", label = "Fatalities-Irsaeli Source") %>%
+  dyOptions(drawPoints = TRUE, pointSize = 2, colors = RColorBrewer::brewer.pal(3, "Set1")) %>%
+dyShading(from = "2016-1-1", to = "2020-12-31", color = "white")
+
+```
+
+Row  {data-orientation=rows}
+-------------------------------------
+We can see here that there is a large number of fatalities reported in May 2018. One thing to remember is that there were not actually this many fatalities because of potential duplicate reports. However, what we can gleam from this is that throughout May 2018, there were several reports about the same events that resulted in fatalities. This makes sense because May 15th is what Palestinians consider to be "Nakba Day", which translates to  "Day of the Catastrophe". This is the day after the Gregorian calendar date for Israeli Independence Day (Yom Ha'atzmaut). For the Palestinians, is is a day of commemoration of the displacement that preceded and followed the Israeli Declaration of Independence in 1948. Many demonstrations, especially in Gaza, tend to occur on the days surrounding this date and may even escelate. You'll notice that there's always a spike in May of every year, which is likely due to this. 2018-2019 was a time where the weekly protests occured, which is why there tended to be more fatalities that were continuously reported during this period. 
+
+```{r News Sources- Comparison, include=FALSE, strip.white=TRUE}
+pal_news <- as.character(unique(palcon_full$source)) %>%
+  strsplit(., ";|\n") %>%
+  unlist() %>%
+  trimws()
+
+isr_news <- as.character(unique(isrcon_full$source)) %>%
+  strsplit(., ";|\n") %>%
+  unlist() %>%
+  trimws()
+
+library(VennDiagram)
+ 
+#Make the Venn Diagram
+venn.diagram(
+  x = list(pal_news, isr_news),
+  category.names = c("Palestinian News" , "Israeli News"),
+  filename = 'News_venn.png',
+  output = FALSE ,
+          imagetype="png" ,
+          height = 600 , 
+          width = 600 , 
+          resolution = 300,
+          compression = "lzw",
+          lwd = 1,
+          col=c("#CD1E1E", '#1E88F2'),
+          fill = c(alpha("#CD1E1E",0.3), alpha('#1E88F2',0.3)),
+          cex = 0.5,
+          fontfamily = "sans",
+          cat.cex = 0.3,
+          cat.default.pos = "outer",
+          cat.pos = c(-42, 20),
+          cat.dist = c(0.045, 0.045),
+          cat.fontfamily = "sans",
+          cat.col = c("#CD1E1E", '#1E88F2')
+        )
+
+```
+
+Row  {data-orientation=rows}
+-------------------------------------
+<br>
+```{r figurename, echo=FALSE, fig.cap="Common Data Sources", out.width = '90%'}
+knitr::include_graphics("News_venn.png")
+```
+<br><br>
+
+
+Row {data-height=150}
+-------------------------------------
+<br><br>
+
+Row {data-orientation=rows}
+-------------------------------------
+
+This might seem like a useless comparison, but I want to highlight the important role that media coverage has on this conflict. Certain media sources are incredibly biased and only focus on one aspect of the conflict. In addition, one thing to remember is that Israel is an enemy to several Arab countries (this history is much more complex than that, but just wanted to fill you in on the general sentiment towards Israel) for several reasons, therefore the presence and respect of several news sources are non-existent in Israel. The fact that 44 news sources are common between Israeli and Palestinian data is quite shocking because several news sources blantantly choose to ignore issues happening in Israel. However, the fact that 35 sources are in the Palestinian conflict data and not the Israeli conflict data does affirm the idea that more Arab news sources are reporting on the Palestinian cause than the Israeli cause. Of course, regarding the 8 that are reported in the Israeli dataset, there are news sources that are Israeli and would have the ability to report in events that occur in exclusively Israeli locations (remember-- LOADS of restrictions for Palestinians or outsiders to gain access to certain areas for security reasons).
+
+Row {data-orientation=rows}
+-------------------------------------
+
+
+```{r Total Events, echo=FALSE}
+
+all_con <- rbind(palcon, isrcon)
+
+
+all_totals <- all_con %>% 
+  group_by(actor1, actor2) %>% summarise(total_events_involved=n(), total_fatalities=sum(fatalities)) %>% arrange(desc(total_events_involved, total_fatalities))
+  
+
+# Render a bar chart with a label on the left
+library(reactable)
+
+
+### The columns on this chart are able to be dragged and stetched with the added "resizeable=TRUE"
+
+bar_chart <- function(label, width = "20%", height = "16px", fill = "#CD1E1E", background = NULL) {
+  bar <- div(style = list(background = fill, width = width, height = height))
+  chart <- div(style = list(flexGrow = 1, marginLeft = "8px", background = background), bar)
+  div(style = list(display = "flex", alignItems = "center"), label, chart)
+}
+
+reactable(all_totals, resizable = TRUE,wrap = FALSE, columns = list(
+  total_events_involved = colDef(name = "Total Events Involved",minWidth = 250, align = "left", cell = function(value) {
+    width <- paste0(value / max(all_totals$total_events_involved) * 100, "%")
+    bar_chart(value, width = width)
+  }),
+  total_fatalities = colDef(name = "Total Fatalities in Events", minWidth = 250, align = "left", cell = function(value) {
+    width <- paste0(value / max(all_totals$total_fatalities) * 100, "%")
+    bar_chart(value, width = width, fill = '#1E88F2', background = "#e1e1e1")
+  })
+))
+
+```
+
+Row {data-orientation=rows}
+-------------------------------------
+
+<br>
+<br>
+<br>
+<br>
+<br>
+
+This chart just confirms that not only are most events involving military forces and Palestinian riots, but most fatalities occur in these events as well. The events with the third most fatalities are ones with Israeli Military Forces and Palestinian Unidentified Armed Groups. This is different than something instigated by the Hamas because they are a collective and identifiable group. As I mentioned before, there are many different factions of Palestinian political groups (official and unofficial), so it is no surprise that the number of fatalities that are associated with these kinds of events are high, regardless of the insigator.
+
+
+
+Data Exploration 3- Map Details {data-navmenu="Data Exploration"}
+=====================================
+
+### Let's visually investigate this data! 
+
+<br>
+```{r Inputs, echo=FALSE}
+
+checkboxGroupInput(
+  'year', label = 'Year:', c(2016, 2017, 2018, 2019, 2020), selected = 2020
+)
+```
+
+Column 
+-------------------------------------
+
+```{r Leaflet 1- General Visualization, fig.height=8, fig.width=8}
+library(leafgl)
+
+all_data <- rbind(isrcon_full, palcon_full)
+
+mapdata <- reactive({
+  dplyr::filter(all_data, year %in% input$year) %>%
+  dplyr::select(everything()) %>%
+    sf::st_as_sf(.,coords = c("longitude", "latitude"))
+})
+
+countrypal <- reactive({
+  leaflet::colorFactor(palette = c("blue", "red"), 
+    domain = mapdata()$country)
+})
+
+pal1 <-  leaflet::colorFactor(palette = c("blue", "red"), 
+    domain = all_data$country)
+mypopups <- reactive({
+  glue::glue("Year: {mapdata()$year}<br /> Location: {mapdata()$location}<br />Event Type: {mapdata()$event_type}<br />Notes: {mapdata()$notes}")
+})
+
+
+leaflet::renderLeaflet({
+  leaflet(mapdata()) %>%
+    addProviderTiles("Stamen.Watercolor") %>% 
+  addProviderTiles("Stamen.TonerHybrid") %>%
+    addGlPoints(data = mapdata(), fillColor = ~countrypal()(mapdata()$country), group = "country", popup =mypopups()) %>%
+    addLegend("bottomright", 
+            pal =pal1, 
+            values = ~ country,
+            title = "Country: <br>",
+            opacity = .6)
+})
+ 
+
+```
+
+Data Analysis- Topic Modeling {data-navmenu="Data Analysis"}
+=====================================
+
+### Let's dive into some topic modeling to get a deeper look into those notes!
+
+``` {r Palestinian Data- Topic Modeling, message=FALSE, warning=FALSE, include=FALSE}
+
+library(sf)
+library(tm)
+library(stm)
+library(sentimentr)
+library(magrittr)
+library(SnowballC)
+
+
+processed <- textProcessor(palcon$notes, metadata = palcon)
+
+out <- prepDocuments(processed$documents, processed$vocab, processed$meta)
+docs <- out$documents
+vocab <- out$vocab
+meta <- out$meta
+
+### The first go around, these lines of code need to be ran, but once saved into Rdata, you no longer have to run this again
+#kTest <- searchK(documents = out$documents, 
+                 #vocab = out$vocab, 
+                 #K = c(3:7), verbose = FALSE)
+
+```
+
+Row {data-height=150}
+-------------------------------------
+First, we want to plot out our diagnostic values to decide which number of topics we're going to go with. I am going to try K from 3 to 7 because given the size of the dataset, I don't believe more than 7 topics is necessary since this data doesn't have a complicated relationship between topics and various covariates of interest.
+
+Row {data-orientation=rows, strip.white=TRUE}
+-------------------------------------
+
+### Palestinian Data-Diagnostic Values
+```{r Palestinian-Ktopics plot, fig.show="hold", fig.align='center'}
+plot(kTest)
+plot(kTest$results$exclus, xlab="Topic Number", ylab="Exclusivity")
+```
+
+Row {data-height=100}
+-------------------------------------
+I am going to choose 4 topics becasue the semantic coherence is highest at 4 and exlusivity is also high at 4, with K=5 sacrificing a significant amount of semantic coherence. Although the residuals and held out likelihood are highest at K=5, I want to achieve a reasonable trade-off of semantic coherence and exclusivity of words to topic.
+
+
+Row {data-orientation=rows}
+-------------------------------------
+
+### Palestinian Events Topic Modeling - Top 4 Topics
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+## Again, the following lines of code need to be run the first go around, but in the save function to "stm_data.rData", we don't have to run these every time if we load them first
+
+#dtm <- palcon_full %>%
+  #get_sentences() %$%
+  #sentiment_by(notes, list(location, data_id, notes), polarity_dt = 
+  #lexicon::hash_sentiment_huliu)%>%
+  #select(location, data_id, notes)%>%
+  #as.data.frame()%>%
+  #textProcessor(.$notes, metadata = .)
+
+ #topics4 = stm(documents = dtm$documents,
+              #vocab = dtm$vocab,
+              #K = 4, verbose = FALSE)
+ #save(kTest, dtm, topics4, file = 'stm_data.rData')
+
+
+plot(topics4)
+```
+
+Row {data-orientation=rows}
+-------------------------------------
+
+### Let's get a closer look at these topics
+```{r Label Topics-Pal, include=FALSE}
+labelTopics(topics4, topics = 1:4)
+```
+
+A quick run down: Frex words are ones that occur frequently within the topic and are exclusive to that topic. Highest probability words are the words that have the highest probability of occuring within that topic.  Lift and Score words are just a few different ways of weighting occurrence. 
+<br>
+<br>
+What we can gather from these topics is that Topic 1, the topic with the second highest expected topic proportion, contains the words "Israel", "Gaza", "Force", "Injuries", and "Palestinian", with the Frex words "target" and "airstrike" and Score word of "Hamas". This topic is likely about the events that occur along the Gaza strip, which tend to be more violent and result in many injuries and deaths. Many of the airstrikes that occur (from both Israelis and Palestinians) originate or occur in Gaza. Topic 1 is likely the topic that is most reflective of the violent events that occur in Gaza.
+<br>
+<br>
+Topic 2, the topic with the 3rd highest proportion, contains the words "Israeli","Settler", "Palestinian", "Viillage", and "Jerusalem", with the Frex words "destruction" and "house" and Score words of "Properties" and "Village." This topic is interesting and covers a couple events that happen quite frequently. First, the interaction between Israelis and Palestinians in Jerusalem and the surrounding villages. You will see the word "Settler" in the Palestinian dataset because Israelis are considered "settlers" who have chosen to settle on Palestinian land. You won't see this in the Israeli dataset because it's an "anti-Israeli expansion" term. The other side to this topic is the idea of Palestinian villages and properties being destroyed (extremely common, especially in the West Bank). Often times, Palestinian farms and properties are demolished because they "don't have the proper permit to build" in certain locations. This makes it extremely difficult for Palestinians to gain independence from Israel's agricultural production, which forces Palestinians to either rely on Israel for a supply of goods or retaliate (and both do occur). 
+<br>
+<br>
+Topic 3, the topic with the least highest proportion, contains the works "Demonstration","Palestinian", "Gaza", "March", and "Border", with the Frex words of "gather" and "held" and Lift words of "Balfour" and "anger." A couple things could be happening here-- "March" could be referring to the month, which is possible, or it could be referring to the numerous amounts of marches and demonstations that occurred on a weekly basis along the Gaza strip. This series of protests was widely reported and began on Nakba day. "Balfour" was likely associated with these topics because most of the time, context is given in these reports regarding the history of Nakba day and the relevance that the Balfour Declaration has to this day. 
+<br>
+<br>
+Topic 4, the topic with the highest proportion, includes words like "Israel", "Palestinian", "Clash", "Force", and "Gas", along with the Frex words of "inhale" and "rubber and Score words of "bullet" and "Tear". This topic is representative of what most of the reports are about-- clashes between Israelis and Palestinians. These happen quite frequently and to generalize, usually end in some form of tear gas or rubber bullets being used to "diffuse" the situation. For instance, the experience I've had is often times when crossing into the West Bank from Jerusalem, you will encounter the infamous Wall. This is where many people demonstrate and usually  "the youth" will throw rocks at Israeli military personnel or vehicles. This escelates the situation and gains attention, resulting in rubber bullets and tear gas being used on the demonstrators. This can obviously cause injuries and issues, which explains why these words might appear in the topics.
+
+Row {data-height=75}
+-------------------------------------
+
+``` {r Israeli Data- Topic Modeling, message=FALSE, warning=FALSE, include=FALSE, strip.white=TRUE}
+
+processed2 <- textProcessor(isrcon_full$notes, metadata = isrcon_full)
+
+out2 <- prepDocuments(processed2$documents, processed2$vocab, processed2$meta)
+docs2 <- out2$documents
+vocab2 <- out2$vocab
+meta2 <- out2$meta
+
+#kTest3 <- searchK(documents = out2$documents, 
+                 #vocab = out2$vocab, 
+                 #K = c(3:7), verbose = FALSE)
+
+```
+
+Row {data-height=100}
+-------------------------------------
+#### Topic Modeling Round 2
+
+Again, we want to plot out our diagnostic values to decide which number of topics we're going to go with. I am going to try K from 3 to 7.
+
+Row {data-orientation=rows, strip.white=TRUE}
+-------------------------------------
+
+### Israeli Events Topic Modeling - Top 5 Topics
+```{r Israeli topics plot, fig.show="hold",fig.align='center'}
+plot(kTest3)
+plot(kTest3$results$exclus, xlab="Topic Number", ylab="Exclusivity")
+```
+
+Row {data-height=100}
+-------------------------------------
+I am going to choose 4 topics this time becasue the semantic coherence is high at 4 and exlusivity is also high at 4, with K=5 sacrificing a significant amount of semantic coherence. Although the held out likelihood is higher and residuals are slightly lower at K=5, I want to achieve a reasonable trade-off of semantic coherence and exclusivity of words to topic.
+
+Row {data-orientation=rows}
+-------------------------------------
+### Israeli Events Topic Modeling - Top 4 Topics
+```{r message=FALSE, warning=FALSE, strip.white=TRUE}
+
+#dtm4 <- isrcon_full %>%
+  #select(location, data_id, notes)%>%
+  #as.data.frame()%>%
+  #textProcessor(.$notes, metadata = .)
+
+ #topics4_2 = stm(documents = dtm4$documents,
+              #vocab = dtm4$vocab,
+              #K = 4, verbose = FALSE)
+
+#save(kTest3, dtm4, topics4_2, file = 'stm_data5.rData')
+
+
+plot(topics4_2)
+
+```
+
+
+Row {data-orientation=rows}
+-------------------------------------
+### Let's get a closer look at these topics
+```{r Label Topics-Isr, include=FALSE, strip.white=TRUE}
+labelTopics(topics4_2, topics = 1:4)
+```
+
+Topic 1 has the lowest expected proportion, with words including "Protest", "Minster", "Call", "Prime", and "Held", Frex words of "Movement" and "flag", and Score words of "resign" and "black". This topic is reflective of the events involving the "Black Flag Movement", which is an Israeli activist group who are actively protesting for the resignation of Prime Minister Netanyahu. These events also happen quite frequently and are unique to the Israeli dataset.
+<br>
+<br>
+Topic 2 has the second to last expected proportion and has words that include "Tel Aviv", "Outside", "Jerusalem", and "Demonstrations", with Frex words of "Netanyahu" and "attorney" and lift words of "abduct" and "accept". This topic is likely similar to topic 1 with Israeli activists protesting the government, but instead of a particular group (like the Black Flag Movement), thousands of Israelis will protests certain causes (acknowledging corrupt acts) typically in Tel Aviv or Jerusalem. In addition, back in 2017, weekly protests occurred outside of the Attorney General's residence as a result of his leniency towards Netanyahu, which could be what this topic is reflecting.
+<br>
+<br>
+Topic 3 has the highest expected topic poportion and includes words like "Fire", "Gaza", "Launch", "Injuries","Incendiary", and "Rocket", with Frex words of "cause" and "intercept" and Lift words of "blockade" and "agriculture". This likely describes incidents that occur along the Gaza strip where Palestinian activists will launch incendiary balloons into Israel to protest the blockade on Gaza. This is considered arson and can cause fires that destroy crucial agricultural land in Israel, which causes Israel to retaliate. These retaliations will include targeting important Hamas facilities with bombs. This topic also likely contains the reports of incidents that involve the Iron Dome, which is Israel's missle defense system, and intecepting missles and rockets that would be coming from Gaza. 
+<br>
+<br>
+Topic 4 has the second highest expected proportion and has words that include "Israeli", "police", "Demonstration", "Jerusalem", and "force", with Frex words of "Haredi" and "women" and lift words of "anti-draft" and "anti-Arab". Just as I mentioned before, there are also ultra conservative Israelis, also known as Haredi Jews, that are often found clashing with Arabs and maintain an anti-Arab sentiment. Similar to Palestinians who are extreme in their demonstrations against Israel, Haredi Jews are often ones that are extreme in their demonstrations against Palestine and even against Israeli Government Policies, such as the draft for the Israeli military and the controversial incidents that have surrounded that topic. This also could be reflective of issues regarding women's rights in Israel and demonstrations that have resulted from that.
+
+
+Row {data-orientation=rows}
+-------------------------------------
+
+Data Analysis- Sentiment Analysis {data-navmenu="Data Analysis"}
+=====================================
+
+### Sentiment Analysis
+
+Row {data-height=175}
+-------------------------------------
+
+For the sentiment analysis I will be performing, I am using the Combined Jockers & Rinker Polarity Lookup Table with an added valence shifters to hopefully get a more accurate sentiment score for these news events. Because of the nature of these reports, I know they tend to describe more violent or severe incidents, which will certainly produce a more negative sentiment score. My hope is that by adding valence shifters, it will lighten the severity/negativity of less violent events to present more reasonable results.
+
+Row {data-orientation=rows}
+-------------------------------------
+
+### Palestinian-Estimated Effect of Average Sentiment on Topic
+```{r Sentiment- Pal, include=FALSE}
+#Don't have to run these each time either because they will be saved to rData
+
+#pal_sent <- palcon_full %>%
+  #get_sentences() %$%
+  #sentiment_by(notes, list(data_id, event_date, location), polarity_dt = lexicon::hash_sentiment_jockers_rinker, 
+                      #valence_shifters_dt = lexicon::hash_valence_shifters) %>% 
+  #select(data_id, ave_sentiment) 
+
+
+
+
+palcon_sent <- merge(palcon_full, pal_sent)
+
+pal_ee <- palcon_sent %>%
+textProcessor(.$notes, metadata = .)
+
+pal_ee$meta$ave_sentiment <- as.numeric(pal_ee$meta$ave_sentiment)
+ee_avesent <- estimateEffect(formula = 1:4 ~ ave_sentiment, 
+                            stmobj = topics4, 
+                            metadata = pal_ee$meta)
+
+
+```
+
+```{r EE Sent-Pal}
+
+plot(ee_avesent, "ave_sentiment", method = "continuous", topics = c(1:4), xlab="Average Sentiment", ylab="Expected Topic Proportion")
+```
+
+Row {data-height=150}
+-------------------------------------
+Topic 1 has a higher probability of occuring in the notes with a higher average sentiment score.
+<br>
+Topic 2 has a higher probability of occuring in notes with a lower average sentiment score. 
+<br>
+Topics 3 and 4 don't seem to have much change in probability relative to average sentiment, but Topic 4 seems to SLIGHTLY correlate with a lower average sentiment and topic 3 a slightly higher average sentiment.
+
+Row {data-orientation=rows, strip.white=TRUE}
+-------------------------------------
+
+### Israeli -Estimated Effect of Average Sentiment on Topic
+```{r Sentiment- isr, include=FALSE, strip.white=TRUE}
+
+#isr_sent <- isrcon_full %>%
+  #get_sentences() %$%
+  #sentiment_by(notes, list(data_id, event_date, location), polarity_dt = lexicon::hash_sentiment_jockers_rinker, 
+                      #valence_shifters_dt = lexicon::hash_valence_shifters) %>% 
+  #select(data_id, ave_sentiment) 
+
+isrcon_sent <- merge(isrcon_full,isr_sent)
+
+#save(pal_sent, isr_sent, file = 'sentiment_data.rData')
+
+
+isr_ee <- isrcon_sent %>%
+textProcessor(.$notes, metadata = .)
+
+isr_ee$meta$ave_sentiment <- as.numeric(isr_ee$meta$ave_sentiment)
+isr_ee_avesent <- estimateEffect(formula = 1:4 ~ ave_sentiment, 
+                            stmobj = topics4_2, 
+                            metadata = isr_ee$meta)
+
+
+```
+
+
+```{r EE Sent-Isr, echo=FALSE, strip.white=TRUE}
+
+plot(isr_ee_avesent, "ave_sentiment", method = "continuous", topics = c(1:4), xlab="Average Sentiment", ylab="Expected Topic Proportion")
+```
+
+Row {data-orientation=rows, strip.white=TRUE}
+-------------------------------------
+
+Topics 1 and 3 have a higher probability of occuring in the notes with a higher average sentiment score.
+<br>
+Topic 4 has a higher probability of occuring in notes with a lower average sentiment score. 
+<br>
+Topic 2 doesn't seem to have much change in probability relative to average sentiment, but the probability seems to SLIGHTLY correlate slightly with a higher average sentiment.
+
+
+
+Sentiment Analysis by Location {data-navmenu="Data Analysis"}
+=====================================
+
+### Average Sentiment Score by Location
+
+
+```{r Sentiment Map Inputs-Year, echo=FALSE}
+
+checkboxGroupInput(
+  'year2', label = 'Year:', c(2016, 2017, 2018, 2019, 2020), selected = 2020
+)
+
+```
+
+```{r Sentiment Map Inputs-Sentiment}
+
+avg_long <- mean(all_data$longitude)
+avg_lat <- mean(all_data$latitude)
+
+all_sent <- rbind(palcon_sent, isrcon_sent)
+
+
+max_sentiment = 1
+min_sentiment = all_sent %>% distinct(ave_sentiment) %>% min()
+  
+# sliderInput widget
+sliderInput("sentiment_range", label = h3("Choose average sentiment range"), min = min_sentiment, 
+        max = max_sentiment, value = c(min_sentiment, max_sentiment))
+
+```
+
+```{r Sentiment Map}
+
+pal2 <- colorNumeric(palette = "inferno", domain = all_sent$ave_sentiment, n = 5)
+
+sent_mapdata <- reactive({
+  dplyr::filter(all_sent, (year %in% input$year2) & (ave_sentiment >= input$sentiment_range[1]) & (ave_sentiment <= input$sentiment_range[2])) %>%
+  dplyr::select(everything()) %>%
+    sf::st_as_sf(.,coords = c("longitude", "latitude"))
+})
+
+sent_pal <- reactive({
+  leaflet::colorFactor(palette = "inferno", 
+    domain = sent_mapdata()$ave_sentiment)
+})
+
+sent_mypopups <- reactive({
+  glue::glue("Year: {sent_mapdata()$year}<br /> Location: {sent_mapdata()$location}<br />Average Sentiment: {sent_mapdata()$ave_sentiment}<br /> Notes: {sent_mapdata()$notes}")
+})
+
+
+leaflet::renderLeaflet({
+  leaflet(sent_mapdata()) %>%
+    addProviderTiles("Stamen.Watercolor") %>% 
+  addProviderTiles("Stamen.TonerHybrid") %>%
+    addGlPoints(data = sent_mapdata(), fillColor = ~sent_pal()(sent_mapdata()$ave_sentiment), group = "ave_sentiment", popup =sent_mypopups()) %>%
+  addLegend("bottomright", 
+            pal = pal2, 
+            values = ~ ave_sentiment,
+            title = "Seniment Ratings: <br>Average Sentiment",
+            opacity = .6) %>% 
+  setView(avg_long, avg_lat, zoom = 10)
+})
+
+```
+
+Row {data-orientation=rows}
+-------------------------------------
+<br>
+<br>
+To no surprise, it looks as if the events with the more negative sentiments occur in the major areas, like Tel-Aviv, Jerusalem, Gaza, and Hebron. Of course, there are smaller areas such as Nablus and Haifa, where Palestinians and Israelis are forced to co-exist in the same area. For instance, Nablus, a predominately Palestinian city, is where Jacob's Well and Joseph’s Tomb are located, bringing Jews to the area to visit the holy site. The IDF (Israeli Military) regularly monitors this area, which leads to several clashes also occuring here. 
+<br>
+<br>
+In regards to the (more) positive sentiments, we see things in the Gaza region and throughout the West Bank. Though this may be a surprise, there are occasionally ceasefires, which is why you'll see a more positive sentiment regarding these reports. In addition, the incidents where the Iron Dome intercepts a missle tend to reflect a more positive sentiment, likely because of the addition of "no injuries or fatalities" in the repots. What is interesting is that in the West Bank region, we will see reports of "non-violent activity" where the Israeli military will shut off water supply to a Palestinian Village (also occurs regularly). Clearly, this does not reflect anything positive, but I beleive the sentiment score is being affected by the word "non-violent" and shifted in a more positive light. This is the kind of behavior I hoped to see given the types of reports we're analyzing.
+
+Row {data-orientation=rows}
+-------------------------------------
+
+```{r Positive, Negative, Neutral Counts}
+
+
+all_sent$sent <- if_else(all_sent$ave_sentiment < 0, "Negative", if_else(all_sent$ave_sentiment==0, "Neutral", "Positive"))
+
+ggplot(all_sent, aes(x = country,fill = sent))+
+    geom_bar(stat = "count") +
+  ylab("Count")+
+  ggtitle("Count of Positive, Negative, and Neutral Reports by Country")
+```
+
+Row {data-orientation=rows, strip.white=TRUE}
+-------------------------------------
+<br>
+<br>
+I classified Sentiment accordingly: An average sentiment of less than 0 is considered "Negative", equal to zero is "Neutral", and greater than 0 is "Positive". This chart is a bit decieving at a glance, but once you consider the fact that the Palestinian dataset contains ~6X more data than the Israeli dataset, this seems more reasonable. However, because of the nature of the events that are reported regarding Palestine, most of the reports are likely about events that reflect a negative sentiment. 
+
+Row {data-orientation=rows}
+-------------------------------------
+```{r Histogram by Administration, fig.width=11, fig.height=6}
+ggplot(all_sent, aes(ave_sentiment, fill=admin1))+
+  geom_histogram(bins=15, alpha=0.6)+
+  facet_grid(~admin1)+
+  theme_bw()+
+  xlab("Average Sentiment") +
+  ylab("Count") +
+  ggtitle("Histogram of Counts and Sentiment by Administration")
+```
+
+Row {data-height=120}
+-------------------------------------
+<br>
+
+Row {data-height=220}
+-------------------------------------
+This chart is interesting because we can see that far more events are reported in the West Bank, Gaza, and HaDarom. Full disclaimer: HaDarom is Southern Israel, which includes the Gaza region, so this is no surprise considering these areas are where Palestinians and Israelis constantly brush against each other. You'll also notice that Jerusalem is not considered part of the West Bank either-- once again, this is because neither country has offical claim over this area. For the most part, these graphs tend to be slightly right skewed which reflects the large amount of reports with a negative sentiment.
